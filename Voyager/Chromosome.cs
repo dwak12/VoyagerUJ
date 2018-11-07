@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace Voyager
 {
     class Chromosome
     {
-        private static Random randomGenerator = new Random();
+        private static Random _randomGenerator = new Random();
         private readonly int BITS = Voyager.CITIES;
-        private static readonly bool DEBUG = false;
+        private readonly bool DEBUG = false;
 
         public byte[] Path { get; private set; }
 
@@ -16,37 +15,39 @@ namespace Voyager
             Path = SeedBits();          
         }
 
-        public void Mutation()
+        public void Mutate()
         {
-            var index = randomGenerator.Next(0, BITS);
+            var index = _randomGenerator.Next(0, BITS);
 
-            Path[index] = (byte)randomGenerator.Next(0, BITS);
+            Path[index] = (byte)_randomGenerator.Next(0, BITS);
         }
 
         private byte[] SeedBits()
         {
             var bitArray = new byte[BITS];
             for (int i = 0; i < BITS; i++)
-                bitArray[i] = (byte)randomGenerator.Next(0, 255);
+                bitArray[i] = (byte)_randomGenerator.Next(0, 255);
 
             return bitArray;
         }
 
-        public void PrintCityPath()
+        public void PrintCityPath(int number = 0)
         {
             var iter = BITS;
+            ILogger logger = Logger.Instance;
+            logger.AppendLog("\n [Chromosome "+ number+" Path]");
             foreach (var city in Path)
             {
                 if (iter <= 0)
                 {
                     iter = BITS;
-                    Console.WriteLine();
+                    logger.AppendLog("\n");
                 }
                 iter--;
-                Console.Write(city + " ");              
+                logger.AppendLog(city + " ");
             }
 
-            Console.WriteLine();
+            logger.AppendLog("\n");
         }
 
         public void Crossing(byte[] firstParent, byte[] secondParent, int cutIndex)

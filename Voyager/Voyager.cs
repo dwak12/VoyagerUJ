@@ -6,60 +6,92 @@ namespace Voyager
     class Voyager
     {
         public static readonly int CITIES = 100;
-        public static readonly int GENERATIONS = 10000;
-        public static readonly int GENERATIONS_GUARD = 1000; //if there will be no improve in 1000 generations -> stop
-        public static readonly int MUTATION_IN_GENERATION = 5;
-        public static readonly int RANGE = 255;
-        public static readonly int POPULATION = 100;
-        private static readonly bool DEBUG = true;
-        private static Random randomGenerator = new Random();
+        private readonly int GENERATIONS = 10000;
+        private readonly int GENERATIONS_GUARD = 1000; //if there will be no improve in 1000 generations -> stop
+        private readonly int MUTATION_IN_GENERATION_MIN = 5;
+        private readonly int MUTATION_IN_GENERATION_MAX = 11;
+        private readonly int RANGE = 255;
+        private readonly int POPULATION = 100;
+        private readonly bool DEBUG = false;
+        private readonly int MIN_PRICE = 10;
+        private readonly int MAX_PRICE = 60;
+        private static Random _randomGenerator = new Random();
 
-        private int MinCost = int.MaxValue;
-        private List<Chromosome> Population = new List<Chromosome>();
-        private int WithoutChange = 0;
+        private int _minCost = int.MaxValue;
+        private int _currentMinCost = int.MaxValue;
+        private List<Chromosome> _population = new List<Chromosome>();
+        private int _withoutChange = 0;
+
         public int[,] Prices { get; } = new int[CITIES, CITIES];
 
         public void CreateVoyage()
         {
+            ILogger logger = Logger.Instance;
+
             //prices
-            for (int i = 0; i < Voyager.CITIES; i++)
-                for (int j = 0; j < Voyager.CITIES; j++)
-                    Prices[i, j] = randomGenerator.Next(10, 60);
+            for (int i = 0; i < CITIES; i++)
+                for (int j = 0; j < CITIES; j++)
+                    Prices[i, j] = _randomGenerator.Next(MIN_PRICE, MAX_PRICE);
+
+            PrintPricesTable();
 
             //create 1st generation
-            for (int i = 0; i < Voyager.CITIES; i++)
-                Population.Add(new Chromosome());
+            for (int i = 0; i < CITIES; i++)
+                _population.Add(new Chromosome());
 
-            foreach (var city in Population) //seed paths
+            foreach (var city in _population) //seed paths
                 city.Seed();
 
-            bool hasResult = false;
+            var hasResult = false;
             for (int step = 0; step < GENERATIONS; step++)
             {
+                logger.AppendLog("\n[" + (step + 1) + " Generation]");
+
+                for (int i = 0; i < _population.Count; i++)
+                    _population[i].PrintCityPath(i + 1);
+
+                _currentMinCost = int.MaxValue;
                 for (int i = 0; i < CITIES; i++)
                 {
                     var result = CalculateCost(i);
-                    if (result < MinCost)
+                    logger.AppendLog("\n[COST] "+ (i+1) + " city cost -> " + result);
+
+                    if (result < _minCost)
                     {
-                        MinCost = result;
+                        _minCost = result;
                         hasResult = true;
                     }
+
+                    if (result < _currentMinCost)
+                        _currentMinCost = result;
                 }
 
                 if (!hasResult)
-                    WithoutChange++;
+                {
+                    _withoutChange++;
+
+                    if (DEBUG)
+                        Console.WriteLine("[No changes] Minimal cost didn't changed");
+
+                    logger.AppendLog("\n[No changes] Minimal cost didn't changed");
+                }
                 else
                 {
-                    WithoutChange = 0;
+                    _withoutChange = 0;
                     hasResult = false;
                 }
 
                 if (DEBUG)
-                    Console.WriteLine("[Minimal Cost] " + MinCost);
+                    Console.WriteLine("[Minimal Cost] Minimal cost in " + (step + 1) + " generation is " + _currentMinCost);
 
-                if (WithoutChange == GENERATIONS_GUARD)
+                logger.AppendLog("\n[Minimal Cost] Minimal cost in " + (step + 1) + " generation is " + _currentMinCost);
+
+                if (_withoutChange == GENERATIONS_GUARD)
                 {
                     Console.WriteLine("[INFO] " + GENERATIONS_GUARD + " generations without improve cost. Ending...");
+                    logger.AppendLog("\n[INFO] " + GENERATIONS_GUARD + " generations without improve cost. Ending...");
+                    Console.WriteLine("[END] After " + (step + 1) + " generations we receive minimal cost -> " + _minCost);
+                    logger.AppendLog("\n[END] After " + (step + 1) + " generations we receive minimal cost -> " + _minCost);
                     return;
                 }
 
@@ -68,12 +100,15 @@ namespace Voyager
                 CrossPairs(pairsList);
 
                 //mutations
-                CreateMutations(randomGenerator.Next(1, 11));
+                CreateMutations(_randomGenerator.Next(MUTATION_IN_GENERATION_MIN, MUTATION_IN_GENERATION_MAX));
 
                 //tournament selection
-                while (Population.Count > 100)
+                while (_population.Count > 100)
                     TournamentSelection();
             }
+
+            logger.AppendLog("\n[END] After 1000 generations we receive minimal cost -> " + _minCost);
+            Console.WriteLine("\n[END] After 1000 generations we receive minimal cost -> " + _minCost);
         }
 
         private int CalculateCost(int childNumber)
@@ -83,7 +118,7 @@ namespace Voyager
             bool firstIter = false;
             byte currentCity = 0;
 
-            foreach (var city in Population[childNumber].Path)
+            foreach (var city in _population[childNumber].Path)
             {
                 var tempCity = city;
 
@@ -100,9 +135,6 @@ namespace Voyager
                 currentCity = (byte)realNumber;
             }
 
-            if (DEBUG)
-                Console.WriteLine("[COST] " + value);
-
             return value;
         }
 
@@ -117,16 +149,16 @@ namespace Voyager
 
         private List<Tuple<int, int>> PreparePairs()
         {
-            var citiesCrossing = new List<Chromosome>(Population);
+            var citiesCrossing = new List<Chromosome>(_population);
             var pairsList = new List<Tuple<int, int>>();
 
             for (int i = 0; i < CITIES / 2; i++)
             {
-                var firstParent = randomGenerator.Next(0, citiesCrossing.Count);
-                var secondParent = randomGenerator.Next(0, citiesCrossing.Count);
+                var firstParent = _randomGenerator.Next(0, citiesCrossing.Count);
+                var secondParent = _randomGenerator.Next(0, citiesCrossing.Count);
 
                 while (firstParent == secondParent)
-                    secondParent = randomGenerator.Next(0, citiesCrossing.Count);
+                    secondParent = _randomGenerator.Next(0, citiesCrossing.Count);
 
                 var pair = new Tuple<int, int>(firstParent, secondParent);
                 pairsList.Add(pair);
@@ -147,36 +179,48 @@ namespace Voyager
             {
                 var firstChild = new Chromosome();
                 var secondChild = new Chromosome();
-                var firstParent = Population[pair.Item1];
-                var secondParent = Population[pair.Item2];
+                var firstParent = _population[pair.Item1];
+                var secondParent = _population[pair.Item2];
 
-                var cutIndex = randomGenerator.Next(1, 99);
+                var cutIndex = _randomGenerator.Next(1, 99);
                 firstChild.Crossing(firstParent.Path, secondParent.Path, cutIndex);
                 secondChild.Crossing(secondParent.Path, firstParent.Path, cutIndex);
 
-                Population.Add(firstChild);
-                Population.Add(secondChild);
+                _population.Add(firstChild);
+                _population.Add(secondChild);
             }
         }
 
         private void CreateMutations(int howMany)
         {
             for (int i = 0; i < howMany; i++)
-                Population[randomGenerator.Next(0, Population.Count)].Mutation();
+                _population[_randomGenerator.Next(0, _population.Count)].Mutate();
         }
 
         private void TournamentSelection()
         {
-            var firstPath = randomGenerator.Next(0, Population.Count);
-            var secondPath = randomGenerator.Next(0, Population.Count);
+            var firstPath = _randomGenerator.Next(0, _population.Count);
+            var secondPath = _randomGenerator.Next(0, _population.Count);
 
             while (firstPath == secondPath)
-                secondPath = randomGenerator.Next(0, Population.Count);
+                secondPath = _randomGenerator.Next(0, _population.Count);
 
             if (CalculateCost(firstPath) > CalculateCost(secondPath))
-                Population.RemoveAt(secondPath);
+                _population.RemoveAt(secondPath);
             else
-                Population.RemoveAt(firstPath);
+                _population.RemoveAt(firstPath);
+        }
+
+        private void PrintPricesTable()
+        {
+            ILogger logger = Logger.Instance;
+            logger.AppendLog("\n [Price Table]");
+            for (int i = 0; i < CITIES; i++)
+            {
+                logger.AppendLog("\n City number " + i + "\n");
+                for (int j = 0; j < CITIES; j++)
+                    logger.AppendLog(Prices[i, j].ToString() + "  ");
+            }
         }
     }
 }
