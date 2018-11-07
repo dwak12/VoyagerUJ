@@ -60,9 +60,6 @@ namespace Voyager
                 else
                     Path[i] = secondParent[i];
             }
-
-            if (DEBUG)
-                PrintCityPath();
         }
     }
 }

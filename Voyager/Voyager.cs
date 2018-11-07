@@ -10,9 +10,9 @@ namespace Voyager
         private readonly int GENERATIONS_GUARD = 1000; //if there will be no improve in 1000 generations -> stop
         private readonly int MUTATION_IN_GENERATION_MIN = 5;
         private readonly int MUTATION_IN_GENERATION_MAX = 11;
-        private readonly int RANGE = 255;
-        private readonly int POPULATION = 100;
         private readonly bool DEBUG = false;
+        private readonly bool LOG_PATHS = false; //make log file very big 
+        private readonly bool LOG_CROSSING = false; //make log file very big 
         private readonly int MIN_PRICE = 10;
         private readonly int MAX_PRICE = 60;
         private static Random _randomGenerator = new Random();
@@ -47,8 +47,11 @@ namespace Voyager
             {
                 logger.AppendLog("\n[" + (step + 1) + " Generation]");
 
-                for (int i = 0; i < _population.Count; i++)
-                    _population[i].PrintCityPath(i + 1);
+                if (LOG_PATHS)
+                {
+                    for (int i = 0; i < _population.Count; i++)
+                        _population[i].PrintCityPath(i + 1);
+                }
 
                 _currentMinCost = int.MaxValue;
                 for (int i = 0; i < CITIES; i++)
@@ -98,6 +101,12 @@ namespace Voyager
                 //crossing
                 var pairsList = PreparePairs();
                 CrossPairs(pairsList);
+
+                if (LOG_CROSSING)
+                {
+                    for (int i = 0; i < _population.Count; i++)
+                        _population[i].PrintCityPath(i + 1);
+                }
 
                 //mutations
                 CreateMutations(_randomGenerator.Next(MUTATION_IN_GENERATION_MIN, MUTATION_IN_GENERATION_MAX));
@@ -205,7 +214,7 @@ namespace Voyager
             while (firstPath == secondPath)
                 secondPath = _randomGenerator.Next(0, _population.Count);
 
-            if (CalculateCost(firstPath) > CalculateCost(secondPath))
+            if (CalculateCost(firstPath) < CalculateCost(secondPath))
                 _population.RemoveAt(secondPath);
             else
                 _population.RemoveAt(firstPath);
