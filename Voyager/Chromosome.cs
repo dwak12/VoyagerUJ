@@ -6,7 +6,7 @@ namespace Voyager
     {
         private static Random _randomGenerator = new Random();
         private readonly int BITS = Voyager.CITIES;
-        private readonly bool DEBUG = false;
+        private readonly int GENOTYPE_VALUES = 255;
 
         public byte[] Path { get; private set; }
 
@@ -19,14 +19,14 @@ namespace Voyager
         {
             var index = _randomGenerator.Next(0, BITS);
 
-            Path[index] = (byte)_randomGenerator.Next(0, BITS);
+            Path[index] = (byte)_randomGenerator.Next(0, GENOTYPE_VALUES);
         }
 
         private byte[] SeedBits()
         {
             var bitArray = new byte[BITS];
             for (int i = 0; i < BITS; i++)
-                bitArray[i] = (byte)_randomGenerator.Next(0, 255);
+                bitArray[i] = (byte)_randomGenerator.Next(0, GENOTYPE_VALUES);
 
             return bitArray;
         }
